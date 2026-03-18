@@ -2,7 +2,7 @@ import type { SIPInputs, SIPResult } from '@/types/finance';
 
 /**
  * Calculate future value of SIP
- * Formula: FV = P * [((1 + r)^n - 1) / r] * (1 + r)
+ * Formula: FV = P * [((1 + r)^n - 1) / r]
  * where P = monthly investment, r = monthly rate, n = number of months
  */
 export function calculateSIPFutureValue(
@@ -19,28 +19,30 @@ export function calculateSIPFutureValue(
     const futureValue =
         monthlyInvestment *
         (Math.pow(1 + monthlyRate, months) - 1) /
-        monthlyRate *
-        (1 + monthlyRate);
+        monthlyRate;
 
     return futureValue;
 }
 
 /**
  * Calculate SIP with monthly tracking
+ * Using standard SIP formula: FV = P * [((1 + r)^n - 1) / r]
  */
 export function calculateSIPDetailed(inputs: SIPInputs): SIPResult {
     const { monthlyInvestment, annualReturnRate, investmentMonths, inflationRate = 3 } = inputs;
     const monthlyRate = annualReturnRate / 100 / 12;
     const monthlyInflationRate = inflationRate / 100 / 12;
 
-    let totalInvested = 0;
-    let totalValue = 0;
     const monthlyData = [];
 
+    // Using standard SIP formula
     for (let month = 1; month <= investmentMonths; month++) {
-        const previousValue = totalValue * (1 + monthlyRate);
-        totalValue = previousValue + monthlyInvestment;
-        totalInvested += monthlyInvestment;
+        const totalInvested = monthlyInvestment * month;
+
+        // FV = P * [((1 + r)^n - 1) / r]
+        const futureValueFactor = monthlyRate === 0 ? month :
+            (Math.pow(1 + monthlyRate, month) - 1) / monthlyRate;
+        const totalValue = monthlyInvestment * futureValueFactor;
 
         monthlyData.push({
             month,
@@ -50,15 +52,18 @@ export function calculateSIPDetailed(inputs: SIPInputs): SIPResult {
         });
     }
 
-    const futureValue = totalValue;
-    const wealthGained = futureValue - totalInvested;
+    const totalInvestedAmount = monthlyInvestment * investmentMonths;
+    const futureValue = monthlyInvestment *
+        (monthlyRate === 0 ? investmentMonths :
+            (Math.pow(1 + monthlyRate, investmentMonths) - 1) / monthlyRate);
+    const wealthGained = futureValue - totalInvestedAmount;
 
     // Calculate inflation-adjusted value
     const inflationAdjustedValue = futureValue / Math.pow(1 + monthlyInflationRate, investmentMonths);
 
     return {
         futureValue: Math.round(futureValue * 100) / 100,
-        totalInvested: Math.round(totalInvested * 100) / 100,
+        totalInvested: Math.round(totalInvestedAmount * 100) / 100,
         wealthGained: Math.round(wealthGained * 100) / 100,
         inflationAdjustedValue: Math.round(inflationAdjustedValue * 100) / 100,
         monthlyData: monthlyData.map(m => ({
@@ -85,7 +90,7 @@ export function calculateRequiredSIP(
     }
 
     const requiredSIP = goalAmount /
-        (((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate));
+        ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
 
     return Math.ceil(requiredSIP * 100) / 100;
 }
